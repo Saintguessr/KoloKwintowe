@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a1428" />
+  <meta name="description" content="Interaktywne Koło Kwintowe w polskiej notacji muzycznej (PWA)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Koło Kwintowe</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon-192.svg" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.svg" />
+  <style>
+    :root {
+      --bg-dark: #0a1428;
+      --bg-card: #0f1e3a;
+      --bg-sector: #15294e;
+      --bg-sector-inner: #10203e;
+      --accent-yellow: #ffd60a;
+      --accent-yellow-soft: rgba(255, 214, 10, 0.25);
+      --text-white: #ffffff;
+      --text-dark: #0a1428;
+      --border-subtle: rgba(255, 255, 255, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-dark);
+      color: var(--text-white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .app {
+      min-height: 100dvh;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    header {
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    header p {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.72);
+      margin-top: 2px;
+    }
+
+    .wheel-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1 1 auto;
+    }
+
+    .wheel-box {
+      width: 100%;
+      max-width: min(88vw, 48vh, 430px);
+      aspect-ratio: 1 / 1;
+      position: relative;
+    }
+
+    svg#circleOfFifths {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: visible;
+    }
+
+    .sector {
+      cursor: pointer;
+      transition: fill 0.18s ease, stroke 0.18s ease;
+    }
+
+    .sector-major {
+      fill: var(--bg-sector);
+      stroke: var(--bg-dark);
+      stroke-width: 2;
+    }
+
+    .sector-minor {
+      fill: var(--bg-sector-inner);
+      stroke: var(--bg-dark);
+      stroke-width: 2;
+    }
+
+    .sector.related {
+      fill: rgba(255, 214, 10, 0.82);
+    }
+
+    .sector.tonic {
+      fill: var(--accent-yellow);
+    }
+
+    .sector.harmonic-dom {
+      stroke: var(--accent-yellow);
+      stroke-width: 3;
+      stroke-dasharray: 5 3;
+    }
+
+    .sector-label {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--text-white);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+      transition: fill 0.18s ease;
+    }
+
+    .sector-label.minor-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .sector-label.active-text {
+      fill: var(--text-dark);
+    }
+
+    .harm-badge {
+      font-size: 9.5px;
+      font-weight: 800;
+      fill: var(--accent-yellow);
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .center-hub {
+      fill: var(--bg-dark);
+      stroke: var(--border-subtle);
+      stroke-width: 2;
+    }
+
+    .center-title {
+      fill: var(--accent-yellow);
+      font-size: 16px;
+      font-weight: 800;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .center-sub {
+      fill: rgba(255, 255, 255, 0.78);
+      font-size: 10px;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .key-info {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--accent-yellow);
+    }
+
+    .key-info span {
+      color: var(--text-white);
+      font-weight: 500;
+      font-size: 0.8rem;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    button {
+      background: var(--bg-sector);
+      color: var(--text-white);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 7px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    button.btn-accent {
+      background: var(--accent-yellow);
+      color: var(--text-dark);
+      border-color: var(--accent-yellow);
+      font-weight: 700;
+    }
+
+    .chords-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .chord-card {
+      background: var(--bg-sector);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 7px 6px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+    }
+
+    .chord-card.highlight {
+      border-color: var(--accent-yellow);
+      background: rgba(255, 214, 10, 0.14);
+    }
+
+    .chord-role {
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: rgba(255, 255, 255, 0.68);
+      margin-bottom: 2px;
+    }
+
+    .chord-name {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .harm-pill {
+      background: var(--accent-yellow);
+      color: var(--text-dark);
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Koło Kwintowe</h1>
+      <p>Zewnętrzne: durowe • Wewnętrzne: molowe</p>
+    </header>
+
+    <div class="wheel-container">
+      <div class="wheel-box">
+        <svg id="circleOfFifths" viewBox="-220 -220 440 440" aria-label="Interaktywne koło kwintowe"></svg>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-top">
+        <div class="key-info" id="keyTitle">
+          Tonacja: C-dur
+          <span id="keySig">Znaki przykluczowe: brak</span>
+        </div>
+        <div class="controls">
+          <button id="toggleHarmBtn" style="display:none;" title="Przełącz wariant dominanty w molowej">D: Harm.</button>
+          <button class="btn-accent" id="playCadenceBtn">▶ Kadencja</button>
+        </div>
+      </div>
+      <div class="chords-grid" id="chordsGrid"></div>
+    </section>
+  </div>
+
+  <script>
+    const CIRCLE_DATA = [
+      { major: "C",       minor: "a",       sig: "brak znaków",  rootMidi: 60, minorMidi: 57 },
+      { major: "G",       minor: "e",       sig: "1 krzyżyk (fis)", rootMidi: 67, minorMidi: 64 },
+      { major: "D",       minor: "h",       sig: "2 krzyżyki",   rootMidi: 62, minorMidi: 59 },
+      { major: "A",       minor: "fis",     sig: "3 krzyżyki",   rootMidi: 69, minorMidi: 66 },
+      { major: "E",       minor: "cis",     sig: "4 krzyżyki",   rootMidi: 64, minorMidi: 61 },
+      { major: "H",       minor: "gis",     sig: "5 krzyżyków",  rootMidi: 71, minorMidi: 68 },
+      { major: "Fis/Ges", minor: "dis/es",  sig: "6♯ / 6♭",      rootMidi: 66, minorMidi: 63 },
+      { major: "Des",     minor: "b",       sig: "5 bemoli",     rootMidi: 61, minorMidi: 58 },
+      { major: "As",      minor: "f",       sig: "4 bemole",     rootMidi: 68, minorMidi: 65 },
+      { major: "Es",      minor: "c",       sig: "3 bemole",     rootMidi: 63, minorMidi: 60 },
+      { major: "B",       minor: "g",       sig: "2 bemole",     rootMidi: 70, minorMidi: 67 },
+      { major: "F",       minor: "d",       sig: "1 bemol (b)",  rootMidi: 65, minorMidi: 62 }
+    ];
+
+    let selectedIndex = 0;
+    let selectedMode = "major"; // "major" | "minor"
+    let harmonicDominant = true;
+    let audioCtx = null;
+
+    function mod12(n) {
+      return ((n % 12) + 12) % 12;
+    }
+
+    function playChordSound(rootMidi, isMinor) {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      const intervals = isMinor ? [0, 3, 7, 12] : [0, 4, 7, 12];
+      const now = audioCtx.currentTime;
+
+      intervals.forEach((semi, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freq = 440 * Math.pow(2, (rootMidi + semi - 69) / 12);
+
+        osc.type = idx === 0 ? "triangle" : "sine";
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(idx === 0 ? 0.16 : 0.11, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 1.0);
+      });
+    }
+
+    function polarToCartesian(r, angleDeg) {
+      const rad = (angleDeg - 90) * Math.PI / 180;
+      return {
+        x: r * Math.cos(rad),
+        y: r * Math.sin(rad)
+      };
+    }
+
+    function createAnnularSectorPath(rInner, rOuter, startAngle, endAngle) {
+      const p1 = polarToCartesian(rOuter, startAngle);
+      const p2 = polarToCartesian(rOuter, endAngle);
+      const p3 = polarToCartesian(rInner, endAngle);
+      const p4 = polarToCartesian(rInner, startAngle);
+      return [
+        `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`,
+        `A ${rOuter} ${rOuter} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
+        `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)}`,
+        `A ${rInner} ${rInner} 0 0 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)}`,
+        "Z"
+      ].join(" ");
+    }
+
+    function buildWheel() {
+      const svg = document.getElementById("circleOfFifths");
+      svg.innerHTML = "";
+
+      const R_OUTER = 198;
+      const R_MID = 132;
+      const R_INNER = 66;
+
+      CIRCLE_DATA.forEach((item, i) => {
+        const startAngle = i * 30 - 15;
+        const endAngle = i * 30 + 15;
+        const midAngle = i * 30;
+
+        // Zewnętrzny (durowy)
+        const majorPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        majorPath.setAttribute("d", createAnnularSectorPath(R_MID, R_OUTER, startAngle, endAngle));
+        majorPath.setAttribute("class", "sector sector-major");
+        majorPath.dataset.index = i;
+        majorPath.dataset.mode = "major";
+        majorPath.addEventListener("click", () => {
+          selectedIndex = i;
+          selectedMode = "major";
+          playChordSound(item.rootMidi, false);
+          updateUI();
+        });
+        svg.appendChild(majorPath);
+
+        const majorPos = polarToCartesian((R_MID + R_OUTER) / 2, midAngle);
+        const majorText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        majorText.setAttribute("x", majorPos.x.toFixed(2));
+        majorText.setAttribute("y", majorPos.y.toFixed(2));
+        majorText.setAttribute("class", "sector-label major-label");
+        majorText.dataset.index = i;
+        majorText.dataset.mode = "major";
+        majorText.textContent = item.major;
+        svg.appendChild(majorText);
+
+        // Etykieta (D) dla dominanty harmonicznej w trybie molowym
+        const badgePos = polarToCartesian(R_OUTER - 12, midAngle);
+        const badgeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        badgeText.setAttribute("x", badgePos.x.toFixed(2));
+        badgeText.setAttribute("y", badgePos.y.toFixed(2));
+        badgeText.setAttribute("class", "harm-badge");
+        badgeText.dataset.badgeIndex = i;
+        badgeText.textContent = "";
+        svg.appendChild(badgeText);
+
+        // Wewnętrzny (molowy)
+        const minorPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        minorPath.setAttribute("d", createAnnularSectorPath(R_INNER, R_MID, startAngle, endAngle));
+        minorPath.setAttribute("class", "sector sector-minor");
+        minorPath.dataset.index = i;
+        minorPath.dataset.mode = "minor";
+        minorPath.addEventListener("click", () => {
+          selectedIndex = i;
+          selectedMode = "minor";
+          playChordSound(item.minorMidi, true);
+          updateUI();
+        });
+        svg.appendChild(minorPath);
+
+        const minorPos = polarToCartesian((R_INNER + R_MID) / 2, midAngle);
+        const minorText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        minorText.setAttribute("x", minorPos.x.toFixed(2));
+        minorText.setAttribute("y", minorPos.y.toFixed(2));
+        minorText.setAttribute("class", "sector-label minor-label");
+        minorText.dataset.index = i;
+        minorText.dataset.mode = "minor";
+        minorText.textContent = item.minor;
+        svg.appendChild(minorText);
+      });
+
+      // Środek tarczy
+      const centerCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      centerCircle.setAttribute("cx", "0");
+      centerCircle.setAttribute("cy", "0");
+      centerCircle.setAttribute("r", R_INNER - 2);
+      centerCircle.setAttribute("class", "center-hub");
+      svg.appendChild(centerCircle);
+
+      const centerTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      centerTitle.setAttribute("x", "0");
+      centerTitle.setAttribute("y", "-8");
+      centerTitle.setAttribute("class", "center-title");
+      centerTitle.setAttribute("id", "centerTitle");
+      svg.appendChild(centerTitle);
+
+      const centerSub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      centerSub.setAttribute("x", "0");
+      centerSub.setAttribute("y", "11");
+      centerSub.setAttribute("class", "center-sub");
+      centerSub.setAttribute("id", "centerSub");
+      svg.appendChild(centerSub);
+    }
+
+    function updateUI() {
+      const subIdx = mod12(selectedIndex - 1);
+      const domIdx = mod12(selectedIndex + 1);
+      const relatedIndices = new Set([subIdx, selectedIndex, domIdx]);
+      const harmDomIdx = selectedMode === "minor" ? mod12(selectedIndex + 4) : -1;
+
+      document.querySelectorAll(".sector").forEach((el) => {
+        const idx = Number(el.dataset.index);
+        const mode = el.dataset.mode;
+        el.classList.remove("related", "tonic", "harmonic-dom");
+
+        if (relatedIndices.has(idx)) {
+          el.classList.add("related");
+        }
+        if (idx === selectedIndex && mode === selectedMode) {
+          el.classList.add("tonic");
+        }
+        if (mode === "major" && idx === harmDomIdx) {
+          el.classList.add("harmonic-dom");
+        }
+      });
+
+      document.querySelectorAll(".sector-label").forEach((el) => {
+        const idx = Number(el.dataset.index);
+        el.classList.toggle("active-text", relatedIndices.has(idx));
+      });
+
+      document.querySelectorAll(".harm-badge").forEach((el) => {
+        const idx = Number(el.dataset.badgeIndex);
+        el.textContent = idx === harmDomIdx ? "(D)" : "";
+      });
+
+      const current = CIRCLE_DATA[selectedIndex];
+      const keyLabel = selectedMode === "major" ? `${current.major}-dur` : `${current.minor}-moll`;
+
+      document.getElementById("centerTitle").textContent = selectedMode === "major" ? current.major : current.minor;
+      document.getElementById("centerSub").textContent = selectedMode === "major" ? "durowa" : "molowa";
+
+      document.getElementById("keyTitle").innerHTML = `Tonacja: ${keyLabel}<span>Znaki przykluczowe: ${current.sig}</span>`;
+
+      const toggleBtn = document.getElementById("toggleHarmBtn");
+      if (selectedMode === "minor") {
+        toggleBtn.style.display = "inline-block";
+        toggleBtn.textContent = harmonicDominant ? "D: Harm." : "d: Nat.";
+      } else {
+        toggleBtn.style.display = "none";
+      }
+
+      renderChordCards(subIdx, selectedIndex, domIdx, harmDomIdx);
+    }
+
+    function renderChordCards(subIdx, tonIdx, domIdx, harmDomIdx) {
+      const grid = document.getElementById("chordsGrid");
+      grid.innerHTML = "";
+
+      const sub = CIRCLE_DATA[subIdx];
+      const ton = CIRCLE_DATA[tonIdx];
+      const dom = CIRCLE_DATA[domIdx];
+
+      const cards = selectedMode === "major"
+        ? [
+            { role: "Subdominanta (IV)", name: sub.major, midi: sub.rootMidi, minor: false, hi: true },
+            { role: "Tonika (I)", name: ton.major, midi: ton.rootMidi, minor: false, hi: true },
+            { role: "Dominanta (V)", name: dom.major, midi: dom.rootMidi, minor: false, hi: true },
+            { role: "II stopień (ii)", name: sub.minor, midi: sub.minorMidi, minor: true, hi: false },
+            { role: "Paralela (vi)", name: ton.minor, midi: ton.minorMidi, minor: true, hi: false },
+            { role: "III stopień (iii)", name: dom.minor, midi: dom.minorMidi, minor: true, hi: false }
+          ]
+        : [
+            { role: "Subdominanta (iv)", name: sub.minor, midi: sub.minorMidi, minor: true, hi: true },
+            { role: "Tonika (i)", name: ton.minor, midi: ton.minorMidi, minor: true, hi: true },
+            {
+              role: "Dominanta (v / V)",
+              name: dom.minor,
+              midi: dom.minorMidi,
+              minor: true,
+              hi: true,
+              harmName: CIRCLE_DATA[harmDomIdx].major,
+              harmMidi: CIRCLE_DATA[harmDomIdx].rootMidi
+            },
+            { role: "VI stopień (VI)", name: sub.major, midi: sub.rootMidi, minor: false, hi: false },
+            { role: "Paralela (III)", name: ton.major, midi: ton.rootMidi, minor: false, hi: false },
+            { role: "VII stopień (VII)", name: dom.major, midi: dom.rootMidi, minor: false, hi: false }
+          ];
+
+      cards.forEach((c) => {
+        const card = document.createElement("div");
+        card.className = "chord-card" + (c.hi ? " highlight" : "");
+
+        const roleEl = document.createElement("div");
+        roleEl.className = "chord-role";
+        roleEl.textContent = c.role;
+        card.appendChild(roleEl);
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "chord-name";
+
+        const mainSpan = document.createElement("span");
+        mainSpan.textContent = c.name;
+        nameEl.appendChild(mainSpan);
+
+        if (c.harmName) {
+          const pill = document.createElement("span");
+          pill.className = "harm-pill";
+          pill.textContent = `(${c.harmName})`;
+          pill.title = "Dominanta durowa (harmoniczna)";
+          pill.addEventListener("click", (e) => {
+            e.stopPropagation();
+            playChordSound(c.harmMidi, false);
+          });
+          nameEl.appendChild(pill);
+        }
+
+        card.appendChild(nameEl);
+        card.addEventListener("click", () => playChordSound(c.midi, c.minor));
+        grid.appendChild(card);
+      });
+    }
+
+    function playCadence() {
+      const subIdx = mod12(selectedIndex - 1);
+      const domIdx = mod12(selectedIndex + 1);
+      const harmDomIdx = mod12(selectedIndex + 4);
+
+      const seq = selectedMode === "major"
+        ? [
+            { midi: CIRCLE_DATA[selectedIndex].rootMidi, minor: false },
+            { midi: CIRCLE_DATA[subIdx].rootMidi, minor: false },
+            { midi: CIRCLE_DATA[domIdx].rootMidi, minor: false },
+            { midi: CIRCLE_DATA[selectedIndex].rootMidi, minor: false }
+          ]
+        : [
+            { midi: CIRCLE_DATA[selectedIndex].minorMidi, minor: true },
+            { midi: CIRCLE_DATA[subIdx].minorMidi, minor: true },
+            harmonicDominant
+              ? { midi: CIRCLE_DATA[harmDomIdx].rootMidi, minor: false }
+              : { midi: CIRCLE_DATA[domIdx].minorMidi, minor: true },
+            { midi: CIRCLE_DATA[selectedIndex].minorMidi, minor: true }
+          ];
+
+      seq.forEach((step, idx) => {
+        setTimeout(() => playChordSound(step.midi, step.minor), idx * 650);
+      });
+    }
+
+    document.getElementById("toggleHarmBtn").addEventListener("click", () => {
+      harmonicDominant = !harmonicDominant;
+      updateUI();
+    });
+
+    document.getElementById("playCadenceBtn").addEventListener("click", playCadence);
+
+    buildWheel();
+    updateUI();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch((err) => {
+          console.warn("Błąd rejestracji Service Workera:", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
